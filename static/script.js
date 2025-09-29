@@ -241,6 +241,10 @@ function createMemoElement(memo) {
     const formattedContent = formatMemoContent(displayContent);
     const timeAgo = getTimeAgo(memo.timestamp);
 
+    // 检查是否需要显示标题
+    const shouldShowTitle = memo.title && memo.filename && memo.title !== memo.filename.replace('.md', '');
+    const titleHtml = shouldShowTitle ? `<div class="memo-title"><h1>${memo.title}</h1></div>` : '';
+
     memoDiv.innerHTML = `
         <div class="memo-header">
             <div class="memo-author">
@@ -267,6 +271,7 @@ function createMemoElement(memo) {
                 </button>
             </div>
         </div>
+        ${titleHtml}
         <div class="memo-content">${formattedContent}</div>
         ${shouldTruncate ? `
             <div class="read-more-container">

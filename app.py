@@ -153,7 +153,8 @@ class MemoParser:
                             'title': memo_data['title'],
                             'slug': memo_data.get('slug', ''),
                             'summary': memo_data.get('summary', ''),
-                            'year': year_dir.name
+                            'year': year_dir.name,
+                            'filename': memo_data['filename']
                         }
                         memos.append(memo)
                         memo_id += 1
@@ -336,17 +337,24 @@ def get_random_articles():
             else:
                 time_ago = "刚刚"
             
-            # 获取文章标题（取第一行或前50个字符）
-            content_lines = memo['content'].strip().split('\n')
-            title = content_lines[0] if content_lines else memo['content']
-            if len(title) > 50:
-                title = title[:50] + '...'
+            # 获取显示标题：优先使用title字段，没有则使用内容的第一行
+            display_title = ""
+            if memo.get('title') and memo.get('filename') and memo['title'] != memo['filename'].replace('.md', ''):
+                # 有独立的title字段，使用title
+                display_title = memo['title']
+            else:
+                # 没有title字段，使用内容的第一行
+                content_lines = memo['content'].strip().split('\n')
+                display_title = content_lines[0] if content_lines else memo['content']
+                if len(display_title) > 50:
+                    display_title = display_title[:50] + '...'
             
             random_articles.append({
                 'id': memo['id'],
-                'title': title,
+                'title': display_title,
                 'time_ago': time_ago,
-                'tags': memo.get('tags', [])
+                'tags': memo.get('tags', []),
+                'has_title': bool(memo.get('title') and memo.get('filename') and memo['title'] != memo['filename'].replace('.md', ''))
             })
         
         return jsonify(random_articles)

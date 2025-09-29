@@ -64,6 +64,11 @@
                                     </button>
                                 </div>
                             </div>
+                            {% if memo.title and memo.title != memo.filename.replace('.md', '') %}
+                            <div class="memo-title">
+                                <h1>{{ memo.title }}</h1>
+                            </div>
+                            {% endif %}
                             <div class="memo-content">{{ memo.content | safe }}</div>
                             {% if memo.tags %}
                                 <div class="memo-tags">

@@ -387,6 +387,22 @@ body {
     line-height: 1.3;
 }
 
+/* Article title in memo detail page */
+.memo-title {
+    margin: 1rem 0;
+    padding: 0;
+}
+
+.memo-title h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    line-height: 1.2;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
 .memo-content .memo-subtitle {
     font-size: 1.25rem;
     font-weight: 500;
