@@ -227,9 +227,14 @@ def memo_detail(memo_id):
         
         memo['time_ago'] = time_ago
         
-        # 将markdown内容转换为HTML
+        # 将markdown内容转换为HTML，并修复图片路径
         md = markdown.Markdown(extensions=['extra', 'codehilite'])
-        memo['content'] = md.convert(memo['content'])
+        content = memo['content']
+        
+        # 修复相对路径的图片引用，将 ../../assets/ 替换为 /assets/
+        content = re.sub(r'\.\./\.\./assets/', '/assets/', content)
+        
+        memo['content'] = md.convert(content)
         
         return render_template('memo_detail.html', memo=memo)
     else:
