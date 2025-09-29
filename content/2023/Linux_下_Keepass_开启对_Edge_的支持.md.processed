@@ -1,0 +1,25 @@
+---
+title: 强制开启 Keepass 对 Edge 的浏览器密码支持
+slug: linux-下-keepass-开启对-edge-的支持
+date: 2023-12-01 00:00
+datetime: 2023-12-01 00:00
+summary: 强制开启 KeepassXC 对 Edge 浏览器的密码支持，通过自定义浏览器配置解决兼容性问题。
+
+tags: Keepass
+cover_image_url: 
+---
+
+
+ 	
+
+
+
+KeepassXC 忽然无法识别 Edge 浏览器了，表现是在`启用浏览器集成`内，`Edge`的选项是灰色的。
+
+研究了下，虽然不知道如何把它启用，但可以通过自定义一个不用的浏览器，例如`Chromium` ，指定它使用Edge的位置即可。
+
+我的配置位置在：`/home/cheyan/.config/microsoft-edge/NativeMessagingHosts/`
+
+![image-20231201132650972](../../assets/image-20231201132650972.png)
+
+![image-20231201132828561](../../assets/image-20231201132828561.png)

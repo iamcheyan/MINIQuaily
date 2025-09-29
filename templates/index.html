@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MINIQuaily - Iamcheyan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">MINIQuaily - Iamcheyan</h1>
+                <div class="header-actions">
+                    <button class="btn-icon">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Left Column - Main Content -->
+                <div class="left-column">
+                    <!-- Compose Area -->
+                    <div class="compose-area">
+                        <textarea 
+                            id="memoInput" 
+                            class="memo-input" 
+                            placeholder="Any thoughts..."
+                            rows="3"
+                        ></textarea>
+                        <div class="compose-actions">
+                            <div class="compose-tools">
+                                <button class="btn-tool" title="Add image">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn-tool" title="Add link">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                <button class="btn-tool" title="Add code">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                            </div>
+                            <button id="postBtn" class="btn-post">POST</button>
+                        </div>
+                    </div>
+
+                    <!-- Memos List -->
+                    <div class="memos-list" id="memosList">
+                        <!-- Sample memos will be inserted here -->
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination" id="pagination" style="display: none;">
+                        <button id="prevBtn" class="pagination-btn" onclick="prevPage()">
+                            <i class="fas fa-chevron-left"></i>
+                            上一页
+                        </button>
+                        <span id="pageInfo" class="page-info">第 1 页，共 1 页</span>
+                        <button id="nextBtn" class="pagination-btn" onclick="nextPage()">
+                            下一页
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column - Sidebar -->
+                <div class="right-column">
+                    <!-- Search Section -->
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">搜索</h3>
+                        <div class="site-search">
+                            <form class="tipue_search_group" id="search" method="get" action="#" role="search">
+                                <input type="text" name="q" id="tipue_search_input" pattern=".{2,}" list="search" title="At least 2 characters" placeholder="搜索文章...">
+                                <button type="submit" class="tipue_search_button">
+                                    <svg class="bi bi-search" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                        <path fill-rule="evenodd" d="M10.442 10.442a1 1 0 011.415 0l3.85 3.85a1 1 0 01-1.414 1.415l-3.85-3.85a1 1 0 010-1.415z" clip-rule="evenodd"></path>
+                                        <path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 100-11 5.5 5.5 0 000 11zM13 6.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                                <datalist id="search">
+                                    <option>linux</option>
+                                    <option>设计</option>
+                                    <option>旅行</option>
+                                    <option>生活</option>
+                                </datalist>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Random Articles Section -->
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">随机文章</h3>
+                        <div class="random-articles" id="randomArticles">
+                            <!-- Random articles will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

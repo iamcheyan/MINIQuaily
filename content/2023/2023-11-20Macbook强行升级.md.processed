@@ -1,0 +1,37 @@
+---
+title: OpenCore Legacy Patcher 强行升级 MacOS
+slug: 2023-11-20macbook强行升级
+datetime: 2023-11-20 00:00
+date: 2023-11-20 00:00
+summary: OpenCore Legacy Patcher 强行升级 2016 年 MacBook Pro 的详细教程，让老机型支持最新 macOS 系统，绕过苹果限制。
+tags: OpenCore, OpenCore
+cover_image_url: 
+---
+
+
+
+
+![Alt text](<../assets/unknown/截屏0005-11-20 10.59.15.png>)
+
+<!--more-->
+
+手头有一台2016年的 MacBook Pro A1708，也是最后一款可以换硬盘的 MacBook Pro，苹果已经停止了对它的支持，系统版本永远停在了 Monterey。
+
+最近想使用最新版的 Safari，于是想到了强行升级，就找到了 OpenCore Legacy Patcher 这个工具，它其实就是把其它 Mac 电脑的型号信息写在 EFI 分区里，冒充新机器，骗过苹果以便得到更新。
+
+网上的方法写得都太复杂了，又是下系统镜像，又是要刻录U盘，其实这个工具没那么麻烦。
+
+下载 OpenCore Legacy Patcher 后，先点开`Settings`，把机器修成成一个特定的 Identifier。
+
+具体型号清单见 [这个链接](https://dortania.github.io/OpenCore-Legacy-Patcher/MODELS.html)
+
+我的是`MacBook Pro (13-inch, 2016, 2 Thunderbolt 3 ports)`，对应的 Identifier 是`MacBookPro13,1`，跟我的机型比较相似的是 `MacBook Pro (13-inch, 2019, 2 Thunderbolt 3 ports)`，对应的 Identifier 是`MacBookPro15,4`，那就选这个。
+
+然后回到程序首页，点击`Builld and install OpenCore`，写入引导。
+然后重启电脑，启动的时候按住 option 键，选择 OpenCore 的新引导，进入系统之后，点击系统更新，发现就可以查找到新的系统了。
+
+但这时你会发现，系统卡卡的，显示器的分辨率也很大，也不能调整缩放，外接显示器也一无效，别急，安装完新系统之后，再次打开 OpenCore Legacy Patcher，然后点击`Post-unstall Root patch`，打入关键驱动，之后重启即可。
+
+我的 2016 款使用正常，没什么明显问题。
+
+

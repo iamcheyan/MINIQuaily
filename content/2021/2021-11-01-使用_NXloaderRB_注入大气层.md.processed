@@ -1,0 +1,20 @@
+---
+title: 使用_NXloaderRB_注入大气层
+slug: 2021-11-01-使用-nxloaderrb-注入大气层
+datetime: 2021-11-01 00:00
+date: 2021-11-01 00:00
+summary: 传统的注入器总是忘记充电，找到了这个可以通过安卓手机注入的方法。
+tags: Nintendo Switch
+cover_image_url: 
+---
+
+
+![09261-wl03j9vrgq.png](../assets/2022/04/3119467660.png)
+<!--more-->
+传统的注入器总是忘记充电，找到了这个可以通过安卓手机注入的方法。
+先安装 [NXloaderRB][1] ，再将 [hekate 注入文件][2]拷贝到手机，打开应用，选择注入文件，勾上自动注入。
+数据线一头手机，一头机器。
+短接棒插入右手柄槽，按电源和音量+三秒后开机即可。
+安装游戏的话，按住R点击任一游戏，进入超级模式安装。
+  [1]: https://github.com/huhao1987/NXloaderRB
+  [2]: https://www.jianguoyun.com/p/DUN3HeYQu7TTCBilyLUEIAA

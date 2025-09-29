@@ -1,0 +1,116 @@
+---
+title: KVM下虚拟机的VPN网络共享
+slug: kvm下vpn共享
+date: 2024-09-12 00:00
+datetime: 2024-09-12 00:00
+summary: kvm下vpn共享
+tags: KVM,VPN
+cover_image_url: 
+---
+之前折腾过VirtualBox下的虚拟机网络共享，其实KVM也支持，而且配置起来更加方便。
+
+首先查看default网络：
+
+![image-20241128162143326](../../assets/image-20241128162143326.png)
+
+在KVM虚拟机的网络设置里新增一个名为virbr1的隔离网络。
+
+网关为：192.168.56.0/24
+
+DHCP 不使用
+
+![image-20241126182554364](../../assets/image-20241126182554364.png)
+
+![image-20241126182507046](../../assets/image-20241126182507046.png)
+
+把这个隔离网络添加给虚拟机：
+
+![image-20241128162346121](../../assets/image-20241128162346121.png)
+
+然后虚拟机的仅共享网络指定对应IP：
+
+![image-20241126182921714](../../assets/image-20241126182921714.png)
+
+最后把访问流量代理过去即可，为了方便使用，我写了以下脚本：
+
+```bash
+#!/bin/bash
+# 参考https://blog.zenggyu.com/posts/zh/2022-05-04-%E5%9C%A8%E5%AE%BF%E4%B8%BB%E6%9C%BA%E4%B8%AD%E4%BD%BF%E7%94%A8%E8%99%9A%E6%8B%9F%E6%9C%BA%E7%9A%84vpn%E8%BF%9E%E6%8E%A5/#fn2
+
+# 定义DNS服务器列表
+dns_servers=(
+    "180.76.76.76"  # 百度DNS
+    "223.5.5.5"     # 阿里云DNS
+    "119.29.29.29"  # 腾讯DNS
+)
+
+# 定义IP地址列表
+ip_addresses=(
+    "101.132.92.89/32"
+)
+# 将 DNS 服务器地址添加到 IP 地址列表
+for dns in "${dns_servers[@]}"; do
+    ip_addresses+=("$dns/32")
+done
+
+echo "用法: $0 [d-删除全部路由规则]"
+echo ""
+
+# 检查参数
+if [ "$1" = "d" ]; then
+    # 删除路由
+    for ip in "${ip_addresses[@]}"; do
+        if sudo ip route del $ip 2>/dev/null; then
+            echo "已删除路由: $ip"
+        else
+            # 如果路由不存在，直接跳过，不输出错误信息
+            continue
+        fi
+    done
+    echo "❌ 所有存在的路由已删除。"
+else
+    # 定义默认网关IP
+    default_gateway="192.168.56.2"  # 网关
+
+    # 检查命令行参数是否提供了自定义网关IP
+    if [ "$#" -eq 1 ]; then
+        default_gateway="$1"
+    fi
+
+    # 检查网络接口是否存在
+    interface=$(ip addr | grep "inet 192.168.56.1/24 brd 192.168.56.255 scope global" | awk '{print $NF}')
+    if [ -z "$interface" ]; then
+        echo "错误：未找到匹配的网络接口"
+        exit 1
+    else
+        echo "找到网络接口：$interface"
+    fi
+
+    # interface="host_only"
+
+    # 循环添加或更新路由规则
+    for ip in "${ip_addresses[@]}"; do
+        command="sudo ip route replace $ip via $default_gateway dev $interface"
+        echo "$command"
+        eval $command
+    done
+
+    echo "✅ 所有路由已添加或更新。"
+
+    # 随机选择一个IP地址进行路由检查
+    random_ip=${ip_addresses[$RANDOM % ${#ip_addresses[@]}]}
+    random_ip=${random_ip%/*}  # 移除CIDR表示法中的子网掩码部分
+    
+    echo "正在检查随机选择的IP地址路由: $random_ip"
+    ip route get $random_ip
+    echo ""
+
+    # 随机选择一个DNS服务器
+    random_dns=${dns_servers[$RANDOM % ${#dns_servers[@]}]}
+
+    echo "正在 ping 随机选择的 DNS 服务器: $random_dns..."
+    ping -c 4 $random_dns
+    echo ""
+fi
+
+```

@@ -1,0 +1,53 @@
+---
+title: 在 Windows Server 使用 Git 钩子自动部署 pelican 静态页
+slug: 2023-11-23-在win下使用钩子
+datetime: 2023-11-23 00:00
+date: 2023-11-23 00:00
+summary: 在 Windows Server 使用 Git 钩子自动部署 Pelican 静态页的完整教程，Gogs 私有 Git 服务器的自动化部署方案。
+tags: git, gogs, hook
+cover_image_url: 
+---
+
+
+
+![在 Windows Server 使用 Git 钩子自动部署 pelican 静态页](<../assets/2023/2023-11-24 11-02-31屏幕截图.png>)
+<!--more-->
+
+这个网站是托管在我使用 Gogs 搭建的私有 Git 上的。  
+它包含了一个通过 pelican 运行的静态博客。  
+写日志时，先从云端拉取最新代码，然后本地生成 html，再通过我写的一个 ftp 脚本更新到服务器里。  
+但最近想到可以通过钩子把这个流程自动化。 
+但因为我的主机是 Windows Server 2022，而网上的方法大多是针对 Linux 主机的，所以走了些弯路。  
+最终 [看了这篇文章](https://www.tygertec.com/git-hooks-practical-uses-windows/) 后才恍然大悟。   
+其实就是指定 hook 的解释器，以及对 Git 使用绝对路径。 
+
+
+## 钩子文本
+在 Gogs 的`仓库设置`页面的`管理 Git 钩子`里，编辑`post-receive` 钩子，告诉git在提交之后，调用 `hook.sh` 脚本：
+```bash
+#!C:/Program\ Files/Git/bin/bash.exe
+C:/Program\ Files/Git/bin/bash.exe "C:\wwwroot\iamcheyan.com\hook.sh"
+```
+
+## 钩子内容
+前面的`钩子文本`调用了这里的 sh 脚本：C:\wwwroot\iamcheyan.com\hook.sh  
+之所以要分开写，是因为在`post-receive` 钩子中无法直接使用`git push`，所以全写在了脚本中。
+
+```bash
+#!C:/Program\ Files/Git/bin/bash.exe
+# C:\wwwroot\iamcheyan.com\hook.sh
+
+echo "钩子开始执行..."
+cd /c/wwwroot/iamcheyan.com # 切换到站点目录
+unset GIT_DIR   # 确保 Git 可以访问当前目录
+echo "正在拉取最新代码..."
+C:/Program\ Files/Git/bin/git.exe fetch --all   # 获取最新的代码
+C:/Program\ Files/Git/bin/git.exe reset --hard origin/master    # 强制覆盖本地
+cd /c/wwwroot/iamcheyan.com/app/pelican # 切换到 pelican
+echo "正在生成静态文件..."
+pelican content # 渲染静态页
+echo "钩子执行完成"
+```
+
+设置以上钩子后，就可以在提交代码时，自动在服务器上拉取最新代码，并使用 pelican 渲染 html。  
+这样只要一提交代码，再刷新网页，便可看到渲染好的博客文章了，十分方便。

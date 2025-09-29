@@ -1,0 +1,130 @@
+---
+title: Pop!_OS 22.04 LTS 部署 Tabby
+slug: popos-tabby
+datetime: 2023-11-26 00:00
+date: 2023-11-26 00:00
+summary: 
+tags: popOS!, Tabby, GPT, Linux
+cover_image_url: 
+---
+
+
+
+
+![Pop!_OS 22.04 LTS 部署 Tabby ](../../assets/popOS%E4%B8%8B%E9%83%A8%E7%BD%B2Tabby.gif)
+
+Tabby 是一个自托管的 AI 编码助手，为 GitHub Copilot 提供开源和本地替代方案。 
+简单来说，就是一个可以部署在本地的 Copilot 服务。  
+我的笔记本是英特尔QC7，它自带一块 NVIDIA GeForce GTX 1660 Ti 显卡，刚好可以用来进行本地运算。 
+
+## 安装依赖
+如果你也安装是集成 NVIDIA 的 popOS，那么默认便安装好了显卡驱动。  
+之后只需要安装 CUDA 即可，这一部分 system76 的官网有 [非常详细的教程](https://support.system76.com/articles/cuda/#not-running-pop_os)，这也是我喜欢这个发行版的原因，system76 这个公司是很认真地在做这个系统，并且要靠它赚钱。  
+
+## 拉取镜像
+前面依赖安装完成后，便可以拉取 Tabby 的 Docker 镜像了。  
+使用 [Docker 启动 Tabby 有两种模式](https://tabby.tabbyml.com/docs/installation/docker)，一种使用 CPU，一种使用 GPU。 
+我这里选择 GPU :
+```bash
+docker run -it --gpus all -p 8080:8080 -v $HOME/.tabby:/data tabbyml/tabby serve --model TabbyML/StarCoder-1B --device cuda
+```
+
+然后我得到了以下报错：
+```bash
+2023-11-25T17:15:43.168198Z  INFO tabby::serve: crates/tabby/src/serve/mod.rs:146: Starting server, this might takes a few minutes...
+CUDA error 100 at /root/workspace/crates/llama-cpp-bindings/llama.cpp/ggml-cuda.cu:478: no CUDA-capable device is detected
+current device: 0
+```
+
+这一步我搞了好久，百思不得其解。   
+最后在 gpt 的帮助下，我加上了`--privileged`参数，它可以赋予容器访问宿主机上所有设备的特权。  
+通过这个参数可以让容器具有更高的权限，实现对 GPU 设备的访问。   
+所以启动命令如下：
+
+```bash
+docker run --privileged -it --gpus all -p 8080:8080 -v $HOME/.tabby:/data tabbyml/tabby serve --model TabbyML/StarCoder-1B --device cuda
+```
+
+得到如下反馈：
+![Toddy](../../assets/popos_taddy.png)
+
+这时打开 [http://localhost:8080/](http://localhost:8080/) 就可以看到 Tabby 的后台了。
+
+## 集成 VS CODE
+在 vs code 的扩展里搜 Tabby，安装后右下角会显示 Tabby 的图标。  
+每次写代码时，只用写注释即可，Tabby 会自动补全代码，并给出预览，如果觉得代码可用，按下`tab`键即可上屏。
+
+### 开机启动
+
+创建一个新的systemd服务单元文件。
+
+使用以下命令创建一个名为`tabbyml.service`的文件：
+
+```bash
+sudo nano /etc/systemd/system/tabbyml.service
+```
+
+
+在打开的文件中，输入以下内容：
+
+```bash
+[Unit]
+Description=TabbyML Docker Service
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker run --privileged -it --gpus all -p 8080:8080 -v $HOME/.tabby:/data tabbyml/tabby serve --model TabbyML/StarCoder-1B --device cuda
+
+[Install]
+WantedBy=multi-user.target
+```
+
+使用以下命令重新加载systemd服务配置：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable tabbyml.service
+sudo systemctl start tabbyml.service
+```
+
+
+
+### Tabby 配置参数
+
+    ## Tabby代理配置文件
+    
+    ## 在线文档：https://tabby.tabbyml.com/docs/extensions/configuration
+    ## 您可以取消注释并编辑下面的值，以更改默认设置。
+    ## 此文件中的配置优先级低于IDE设置。
+    
+    ## 服务器
+    ## 您可以在此处设置服务器端点和可选的身份验证令牌（如果需要）。
+    # [server]
+    # endpoint = "http://localhost:8080"  # http或https URL
+    # token = "your-token-here"  # 如果设置了令牌，请求头Authorization = "Bearer $token"将自动添加
+    
+    ## 您可以添加自定义请求头。
+    # [server.requestHeaders]
+    # Header1 = "Value1"  # 在此处列出您的自定义标头
+    # Header2 = "Value2"  # 值可以是字符串、数字或布尔值
+    
+    ## 自动完成
+    ## （自 1.1.0 版起）您可以在此处设置自动完成请求的超时时间。
+    ## 请注意，服务器端也有一个超时配置。
+    # [completion]
+    # timeout = 4000  # 4秒
+    
+    ## 日志
+    ## 您可以在此处设置日志级别。日志文件位于~/.tabby-client/agent/logs/目录下。
+    # [logs]
+    # level = "silent"  # "silent"、"error"或"debug"
+    
+    ## 匿名使用追踪
+    ## Tabby会收集匿名使用数据并发送给Tabby团队，以帮助改进我们的产品。
+    ## 您的代码、生成的自动完成或任何敏感信息永远不会被跟踪或发送。
+    ## 有关数据收集的详细信息，请参阅https://tabby.tabbyml.com/docs/extensions/configuration#usage-collection
+    ## 感谢您的贡献。但是，如果您不希望参与，请在此处禁用匿名使用追踪。
+    # [anonymousUsageTracking]
+    # disable = false  # 设置为true以禁用
