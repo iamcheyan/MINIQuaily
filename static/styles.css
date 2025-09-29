@@ -1164,6 +1164,56 @@ body {
 .error {
     color: #dc3545;
 }
+/* Loading Animation for Image Upload */
+.upload-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.upload-loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.upload-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #059669;
+    font-weight: 500;
+}
+
+.upload-success-icon {
+    width: 16px;
+    height: 16px;
+    background-color: #059669;
+    border-radius: 50%;
+    position: relative;
+}
+
+.upload-success-icon::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;

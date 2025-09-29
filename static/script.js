@@ -213,6 +213,9 @@ function setupEventListeners() {
     memoInput.addEventListener('input', handleInputChange);
     memoInput.addEventListener('keydown', handleKeyDown);
     
+    // Add paste event listener for image uploads
+    memoInput.addEventListener('paste', handlePaste);
+    
     // Write log functionality
     const writeLogBtn = document.getElementById('writeLogBtn');
     const writeLogModal = document.getElementById('writeLogModal');
@@ -539,10 +542,35 @@ function toggleLike(memoId) {
     }
 }
 
-function deleteMemo(memoId) {
-    if (confirm('Are you sure you want to delete this memo?')) {
-        memos = memos.filter(m => m.id !== memoId);
-        renderMemos();
+async function deleteMemo(memoId) {
+    if (confirm('确定要删除这篇文章吗？')) {
+        try {
+            const response = await fetch(`/api/delete-memo/${memoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 从本地数组中移除memo
+                memos = memos.filter(m => m.id !== memoId);
+                filteredMemos = filteredMemos.filter(m => m.id !== memoId);
+                
+                // 重新渲染
+                renderMemos();
+                
+                // 显示成功消息
+                showNotification(result.message, 'success');
+            } else {
+                showNotification(result.error || '删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除memo时出错:', error);
+            showNotification('删除失败，请稍后重试', 'error');
+        }
     }
 }
 
@@ -581,17 +609,21 @@ function copyMemo(memoId) {
     const memo = memos.find(m => m.id === memoId);
     if (memo) {
         navigator.clipboard.writeText(memo.content).then(() => {
-            // Show a temporary success message
-            const notification = document.createElement('div');
-            notification.className = 'notification success';
-            notification.textContent = 'Copied to clipboard!';
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 2000);
+            showNotification('Copied to clipboard!', 'success');
         });
     }
+}
+
+// General notification function
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 2000);
 }
 
 function shareMemo(memoId) {
@@ -978,5 +1010,107 @@ async function saveLog() {
     } finally {
         saveLogBtn.disabled = false;
         saveLogBtn.textContent = '保存日志';
+    }
+}
+
+
+async function handlePaste(e) {
+    const items = e.clipboardData.items;
+    
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        // Check if the item is an image
+        if (item.type.indexOf('image') !== -1) {
+            e.preventDefault(); // Prevent default paste behavior
+            
+            const file = item.getAsFile();
+            if (file) {
+                await uploadPastedImage(file);
+            }
+        }
+    }
+}
+
+async function uploadPastedImage(file) {
+    // Store original state
+    const originalPlaceholder = memoInput.placeholder;
+    
+    try {
+        // Show uploading indicator with loading animation
+        memoInput.placeholder = '';
+        memoInput.disabled = true;
+        
+        // Create loading indicator element
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'upload-loading';
+        loadingIndicator.innerHTML = '<div class="upload-loading-spinner"></div>正在上传图片...';
+        loadingIndicator.style.position = 'absolute';
+        loadingIndicator.style.top = '50%';
+        loadingIndicator.style.left = '50%';
+        loadingIndicator.style.transform = 'translate(-50%, -50%)';
+        loadingIndicator.style.zIndex = '1000';
+        loadingIndicator.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        loadingIndicator.style.padding = '10px 15px';
+        loadingIndicator.style.borderRadius = '8px';
+        loadingIndicator.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+        
+        // Add loading indicator to the input container
+        const inputContainer = memoInput.parentElement;
+        inputContainer.style.position = 'relative';
+        inputContainer.appendChild(loadingIndicator);
+        
+        // Create FormData to send the image
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const response = await fetch('/api/upload-image', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Show success indicator
+            loadingIndicator.className = 'upload-success';
+            loadingIndicator.innerHTML = '<div class="upload-success-icon"></div>上传成功！';
+            
+            // Wait for 1 second before showing the image URL
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Insert markdown image syntax at cursor position
+            const cursorPos = memoInput.selectionStart;
+            const textBefore = memoInput.value.substring(0, cursorPos);
+            const textAfter = memoInput.value.substring(cursorPos);
+            const imageMarkdown = `![image](${result.url})`;
+            
+            memoInput.value = textBefore + imageMarkdown + textAfter;
+            
+            // Set cursor position after the inserted image
+            const newCursorPos = cursorPos + imageMarkdown.length;
+            memoInput.setSelectionRange(newCursorPos, newCursorPos);
+            
+            // Trigger input event to update UI
+            memoInput.dispatchEvent(new Event('input'));
+            
+        } else {
+            const error = await response.json();
+            alert('图片上传失败: ' + (error.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('图片上传失败: ' + error.message);
+    } finally {
+        // Remove loading indicator
+        const loadingIndicator = document.querySelector('.upload-loading, .upload-success');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+        
+        // Always restore original state regardless of success or failure
+        memoInput.placeholder = originalPlaceholder;
+        memoInput.disabled = false;
+        memoInput.focus();
     }
 }

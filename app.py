@@ -6,8 +6,23 @@ from datetime import datetime
 import markdown
 import frontmatter
 from pathlib import Path
+import time
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+
+# Configure upload settings
+UPLOAD_FOLDER = 'content/assets'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def ensure_upload_folder():
+    """Ensure the upload folder exists"""
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
 
 class MemoParser:
     def __init__(self, content_dir="content"):
@@ -40,6 +55,45 @@ class MemoParser:
         """检查内容是否包含复选框"""
         checkbox_pattern = r'\[[ xX]\]'
         return bool(re.search(checkbox_pattern, content))
+    
+    def extract_image_references(self, content):
+        """从markdown内容中提取图片引用"""
+        image_urls = []
+        
+        # 匹配markdown图片语法: ![alt](url)
+        markdown_pattern = r'!\[.*?\]\(([^)]+)\)'
+        markdown_matches = re.findall(markdown_pattern, content)
+        image_urls.extend(markdown_matches)
+        
+        # 匹配HTML img标签: <img src="url">
+        html_pattern = r'<img[^>]+src=["\']([^"\']+)["\'][^>]*>'
+        html_matches = re.findall(html_pattern, content, re.IGNORECASE)
+        image_urls.extend(html_matches)
+        
+        # 过滤出本地图片路径（相对路径或以/assets/开头的路径）
+        local_images = []
+        for url in image_urls:
+            # 去除URL参数和锚点
+            clean_url = url.split('?')[0].split('#')[0]
+            
+            # 检查是否为本地图片
+            if (not clean_url.startswith('http://') and 
+                not clean_url.startswith('https://') and 
+                not clean_url.startswith('data:')):
+                # 转换为相对于项目根目录的路径
+                if clean_url.startswith('/assets/'):
+                    local_images.append('content' + clean_url)
+                elif clean_url.startswith('assets/'):
+                    local_images.append('content/' + clean_url)
+                elif clean_url.startswith('./assets/'):
+                    local_images.append('content/' + clean_url[2:])
+                elif clean_url.startswith('../assets/'):
+                    local_images.append('content/' + clean_url[3:])
+                else:
+                    # 其他相对路径，假设相对于content目录
+                    local_images.append(os.path.join('content', clean_url))
+        
+        return local_images
     
     def read_markdown_file(self, filepath):
         """读取并解析markdown文件"""
@@ -117,7 +171,7 @@ class MemoParser:
                 'date': date,
                 'tags': tags,
                 'has_checkbox': has_checkbox,
-                'filepath': filepath
+                'filepath': str(filepath)
             }
         except Exception as e:
             print(f"Error reading {filepath}: {e}")
@@ -154,7 +208,8 @@ class MemoParser:
                             'slug': memo_data.get('slug', ''),
                             'summary': memo_data.get('summary', ''),
                             'year': year_dir.name,
-                            'filename': memo_data['filename']
+                            'filename': memo_data['filename'],
+                            'filepath': memo_data['filepath']
                         }
                         memos.append(memo)
                         memo_id += 1
@@ -447,6 +502,12 @@ def save_log():
         timestamp_ms = int(current_date.timestamp() * 1000)
         filename = f"{timestamp_ms}.md"
         
+        # 如果date和datetime字段为空，自动填充当前时间戳
+        if not datetime_str:
+            datetime_str = current_date.strftime('%Y-%m-%d %H:%M')
+        if not date_str:
+            date_str = current_date.strftime('%Y-%m-%d %H:%M')
+        
         # 确保年份目录存在
         year_dir = os.path.join('content', year)
         os.makedirs(year_dir, exist_ok=True)
@@ -492,6 +553,109 @@ def save_log():
         
     except Exception as e:
         return jsonify({'error': f'保存失败: {str(e)}'}), 500
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    """Handle image upload from paste events"""
+    try:
+        # Ensure upload folder exists
+        ensure_upload_folder()
+        
+        # Check if image file is in request
+        if 'image' not in request.files:
+            return jsonify({'error': '没有找到图片文件'}), 400
+        
+        file = request.files['image']
+        
+        # Check if file is selected
+        if file.filename == '':
+            return jsonify({'error': '没有选择文件'}), 400
+        
+        # Check if file is allowed
+        if file and allowed_file(file.filename):
+            # Generate unique filename with timestamp
+            timestamp = int(time.time() * 1000)  # milliseconds
+            file_extension = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"{timestamp}.{file_extension}"
+            
+            # Save file
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
+            
+            # Return the URL for the uploaded image
+            image_url = f"/assets/{filename}"
+            
+            return jsonify({
+                'success': True,
+                'url': image_url,
+                'filename': filename,
+                'message': '图片上传成功'
+            })
+        else:
+            return jsonify({'error': '不支持的文件类型'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'上传失败: {str(e)}'}), 500
+
+@app.route('/api/delete-memo/<int:memo_id>', methods=['DELETE'])
+def delete_memo(memo_id):
+    """删除指定的memo及其相关图片"""
+    try:
+        # 获取所有memos
+        memos = memo_parser.get_all_memos()
+        
+        # 找到要删除的memo
+        target_memo = None
+        for memo in memos:
+            if memo['id'] == memo_id:
+                target_memo = memo
+                break
+        
+        if not target_memo:
+            return jsonify({'error': '未找到指定的memo'}), 404
+        
+        # 构建markdown文件路径
+        memo_file_path = target_memo['filepath']
+        
+        if not os.path.exists(memo_file_path):
+            return jsonify({'error': '文件不存在'}), 404
+        
+        # 读取文件内容以提取图片引用
+        try:
+            with open(memo_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 提取图片引用
+            image_paths = memo_parser.extract_image_references(content)
+            
+            # 删除相关图片文件
+            deleted_images = []
+            failed_images = []
+            
+            for image_path in image_paths:
+                try:
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
+                        deleted_images.append(image_path)
+                except Exception as img_error:
+                    failed_images.append({'path': image_path, 'error': str(img_error)})
+            
+            # 删除markdown文件
+            os.remove(memo_file_path)
+            
+            return jsonify({
+                'success': True,
+                'message': f'成功删除memo和{len(deleted_images)}个相关图片',
+                'deleted_file': memo_file_path,
+                'deleted_images': deleted_images,
+                'failed_images': failed_images
+            })
+            
+        except Exception as read_error:
+            return jsonify({'error': f'读取文件失败: {str(read_error)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'删除失败: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)
