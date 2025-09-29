@@ -48,6 +48,9 @@
                                 <button class="btn-tool" title="Add code">
                                     <i class="fas fa-code"></i>
                                 </button>
+                                <button id="writeLogBtn" class="btn-tool" title="写日志">
+                                    <i class="fas fa-book"></i>
+                                </button>
                             </div>
                             <button id="postBtn" class="btn-post">POST</button>
                         </div>
@@ -56,6 +59,32 @@
                     <!-- Memos List -->
                     <div class="memos-list" id="memosList">
                         <!-- Sample memos will be inserted here -->
+                    </div>
+
+                    <!-- Write Log Modal -->
+                    <div id="writeLogModal" class="modal-overlay" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>写日志</h3>
+                                <button class="modal-close" onclick="closeWriteLogModal()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label for="logTags">标签 (可选)</label>
+                                    <input type="text" id="logTags" class="form-input" placeholder="输入标签，用逗号分隔">
+                                </div>
+                                <div class="form-group">
+                                    <label for="logContent">内容 (Markdown格式)</label>
+                                    <textarea id="logContent" class="form-textarea" placeholder="在这里写下你的日志内容..." rows="15"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn-secondary" onclick="closeWriteLogModal()">取消</button>
+                                <button id="saveLogBtn" class="btn-primary">保存日志</button>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Pagination -->

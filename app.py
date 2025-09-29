@@ -421,5 +421,76 @@ def get_random_articles():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/save-log', methods=['POST'])
+def save_log():
+    """保存日志到markdown文件"""
+    try:
+        data = request.get_json()
+        
+        # 验证必需字段
+        if not data or not data.get('content'):
+            return jsonify({'error': '内容不能为空'}), 400
+        
+        # 获取数据
+        title = data.get('title', '')
+        slug = data.get('slug', '')
+        datetime_str = data.get('datetime', '')
+        date_str = data.get('date', '')
+        summary = data.get('summary', '')
+        tags = data.get('tags', '')
+        cover_image_url = data.get('cover_image_url', '')
+        content = data.get('content', '')
+        
+        # 生成文件名
+        current_date = datetime.now()
+        year = current_date.strftime('%Y')
+        filename = f"{date_str}-{slug}.md" if slug else f"{date_str}-log.md"
+        
+        # 确保年份目录存在
+        year_dir = os.path.join('content', year)
+        os.makedirs(year_dir, exist_ok=True)
+        
+        # 生成完整文件路径
+        filepath = os.path.join(year_dir, filename)
+        
+        # 检查文件是否已存在，如果存在则添加数字后缀
+        counter = 1
+        original_filepath = filepath
+        while os.path.exists(filepath):
+            name, ext = os.path.splitext(original_filepath)
+            filepath = f"{name}-{counter}{ext}"
+            counter += 1
+        
+        # 创建YAML front matter
+        front_matter = {
+            'title': title,
+            'slug': slug,
+            'datetime': datetime_str,
+            'date': date_str,
+            'summary': summary,
+            'cover_image_url': cover_image_url
+        }
+        
+        # 如果有标签，添加到front matter
+        if tags:
+            front_matter['tags'] = tags
+        
+        # 创建frontmatter对象
+        post = frontmatter.Post(content, **front_matter)
+        
+        # 写入文件
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(frontmatter.dumps(post))
+        
+        return jsonify({
+            'success': True,
+            'message': '日志保存成功',
+            'filepath': filepath,
+            'filename': os.path.basename(filepath)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'保存失败: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

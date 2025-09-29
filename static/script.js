@@ -119,6 +119,7 @@ function navigateToTag(tag) {
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadMemosFromAPI();
+    setupEventListeners();
     
     // 处理浏览器前进后退
     window.addEventListener('popstate', handleRouting);
@@ -211,6 +212,35 @@ function setupEventListeners() {
     postBtn.addEventListener('click', handlePost);
     memoInput.addEventListener('input', handleInputChange);
     memoInput.addEventListener('keydown', handleKeyDown);
+    
+    // Write log functionality
+    const writeLogBtn = document.getElementById('writeLogBtn');
+    const writeLogModal = document.getElementById('writeLogModal');
+    const saveLogBtn = document.getElementById('saveLogBtn');
+    
+    if (writeLogBtn) {
+        writeLogBtn.addEventListener('click', openWriteLogModal);
+    }
+    if (saveLogBtn) {
+        saveLogBtn.addEventListener('click', saveLog);
+    }
+    if (writeLogModal) {
+        writeLogModal.addEventListener('click', function(e) {
+            if (e.target === writeLogModal) {
+                closeWriteLogModal();
+            }
+        });
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const writeLogModal = document.getElementById('writeLogModal');
+            if (writeLogModal && writeLogModal.style.display === 'flex') {
+                closeWriteLogModal();
+            }
+        }
+    });
 }
 
 function handleInputChange() {
@@ -813,4 +843,100 @@ function displaySearchResults(searchData) {
     const searchWindow = window.open('', '_blank');
     searchWindow.document.write(searchResultsHTML);
     searchWindow.document.close();
+}
+
+// ...
+
+// Write Log functionality
+// Write log functionality - moved to setupEventListeners function
+
+function openWriteLogModal() {
+    writeLogModal.style.display = 'flex';
+    logContent.focus();
+}
+
+function closeWriteLogModal() {
+    writeLogModal.style.display = 'none';
+    logContent.value = '';
+    logTags.value = '';
+}
+
+// Remove duplicate modal event listeners - moved to setupEventListeners function
+
+async function saveLog() {
+    const logContent = document.getElementById('logContent');
+    const logTags = document.getElementById('logTags');
+    const saveLogBtn = document.getElementById('saveLogBtn');
+    
+    const content = logContent.value.trim();
+    if (!content) {
+        alert('请输入日志内容');
+        return;
+    }
+
+    const tags = logTags.value.trim();
+    
+    // Generate title from first line or first 50 characters
+    const firstLine = content.split('\n')[0];
+    const title = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+    
+    // Generate slug from title
+    const slug = title.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim('-');
+    
+    // Get current datetime
+    const now = new Date();
+    const datetime = now.toISOString();
+    const date = now.toISOString().split('T')[0];
+    
+    // Generate summary from first paragraph or first 200 characters
+    const firstParagraph = content.split('\n\n')[0];
+    const summary = firstParagraph.length > 200 ? firstParagraph.substring(0, 200) + '...' : firstParagraph;
+    
+    const logData = {
+        title: title,
+        slug: slug,
+        datetime: datetime,
+        date: date,
+        summary: summary,
+        tags: tags,
+        cover_image_url: '',
+        content: content
+    };
+
+    try {
+        saveLogBtn.disabled = true;
+        saveLogBtn.textContent = '保存中...';
+        
+        const response = await fetch('/api/save-log', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(logData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('日志保存成功！');
+            closeWriteLogModal();
+            // Clear form
+            logContent.value = '';
+            logTags.value = '';
+            // Reload memos to show the new log
+            loadMemosFromAPI();
+        } else {
+            alert('保存失败：' + result.error);
+        }
+    } catch (error) {
+        console.error('Error saving log:', error);
+        alert('保存失败：网络错误');
+    } finally {
+        saveLogBtn.disabled = false;
+        saveLogBtn.textContent = '保存日志';
+    }
 }
