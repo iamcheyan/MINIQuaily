@@ -44,13 +44,87 @@ window.addEventListener('popstate', function(event) {
     renderMemos();
 });
 
+// 页面路由处理
+function handleRouting() {
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    
+    if (path.startsWith('/tag/')) {
+        // 标签页面
+        const tag = decodeURIComponent(path.split('/tag/')[1]);
+        filterByTag(tag);
+        document.title = `标签: ${tag} - MINIQuaily`;
+    } else if (path === '/tags') {
+        // 标签列表页面
+        showTagsPage();
+        document.title = '标签列表 - MINIQuaily';
+    } else {
+        // 首页
+        const page = parseInt(params.get('page')) || 1;
+        currentPage = page;
+        filterByTag('all');
+        document.title = 'MINIQuaily';
+    }
+}
+
+// 显示标签列表页面
+function showTagsPage() {
+    const memosContainer = document.getElementById('memos');
+    memosContainer.innerHTML = '<div class="loading">加载标签中...</div>';
+    
+    fetch('/api/tags')
+        .then(response => response.json())
+        .then(data => {
+            renderTagsPage(data.tags);
+        })
+        .catch(error => {
+            console.error('Error loading tags:', error);
+            memosContainer.innerHTML = '<div class="error">加载标签失败</div>';
+        });
+}
+
+// 渲染标签列表页面
+function renderTagsPage(tags) {
+    const memosContainer = document.getElementById('memos');
+    
+    let html = '<div class="tags-page">';
+    html += '<h2>所有标签</h2>';
+    html += '<div class="tags-grid">';
+    
+    tags.forEach(tag => {
+        html += `
+            <div class="tag-card" onclick="navigateToTag('${tag.name}')">
+                <div class="tag-name">${tag.name}</div>
+                <div class="tag-count">${tag.count} 篇文章</div>
+            </div>
+        `;
+    });
+    
+    html += '</div></div>';
+    memosContainer.innerHTML = html;
+}
+
+// 导航到标签列表页面
+function navigateToTags(event) {
+    event.preventDefault();
+    window.history.pushState({}, '', '/tags');
+    handleRouting();
+}
+function navigateToTag(tag) {
+    const encodedTag = encodeURIComponent(tag);
+    window.history.pushState({}, '', `/tag/${encodedTag}`);
+    handleRouting();
+}
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
-    initializePageFromUrl();
     loadMemosFromAPI();
-    loadRandomArticles();
-    setupSearchForm();
-    setupEventListeners();
+    
+    // 处理浏览器前进后退
+    window.addEventListener('popstate', handleRouting);
+    
+    // 初始路由处理
+    handleRouting();
 });
 
 // 从API加载memos
@@ -68,11 +142,48 @@ async function loadMemosFromAPI() {
         filteredMemos = [...memos];
         nextId = Math.max(...memos.map(m => m.id), 0) + 1;
         renderMemos();
+        
+        // 加载标签
+        await loadTags();
     } catch (error) {
         console.error('Error loading memos:', error);
         // 如果API加载失败，使用默认数据
         loadDefaultMemos();
     }
+}
+
+// 加载标签
+async function loadTags() {
+    try {
+        const response = await fetch('/api/tags');
+        const data = await response.json();
+        renderTags(data.tags);
+    } catch (error) {
+        console.error('Error loading tags:', error);
+    }
+}
+
+// 渲染标签
+function renderTags(tags) {
+    const tagsContainer = document.getElementById('tagsContainer');
+    if (!tagsContainer) return;
+    
+    // 保留"全部"按钮
+    const allButton = tagsContainer.querySelector('[data-tag="all"]');
+    tagsContainer.innerHTML = '';
+    tagsContainer.appendChild(allButton);
+    
+    // 只显示前20个最常用的标签
+    const topTags = tags.slice(0, 20);
+    
+    topTags.forEach(tag => {
+        const tagElement = document.createElement('div');
+        tagElement.className = 'tag-filter';
+        tagElement.setAttribute('data-tag', tag.name);
+        tagElement.textContent = `${tag.name} (${tag.count})`;
+        tagElement.onclick = () => filterByTag(tag.name);
+        tagsContainer.appendChild(tagElement);
+    });
 }
 
 // 加载默认数据（备用）
@@ -389,11 +500,10 @@ function filterByTag(tag) {
         btn.classList.remove('active');
     });
     
-    if (tag !== 'all') {
-        const activeBtn = document.querySelector(`[data-tag="${tag}"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-        }
+    // 激活当前选中的标签
+    const activeBtn = document.querySelector(`[data-tag="${tag}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
     }
 }
 

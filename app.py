@@ -179,7 +179,7 @@ def serve_content_files(filename):
 @app.route('/assets/<path:filename>')
 def serve_assets(filename):
     """服务assets目录下的静态文件（如图片）"""
-    return send_from_directory('assets', filename)
+    return send_from_directory('content/assets', filename)
 
 @app.route('/api/memos')
 def get_memos():
@@ -203,6 +203,16 @@ def get_memo(memo_id):
         return jsonify(memo)
     else:
         return jsonify({'error': 'Memo not found'}), 404
+
+@app.route('/tag/<tag>')
+def tag_page(tag):
+    """标签页面"""
+    return render_template('index.html')
+
+@app.route('/tags')
+def tags_page():
+    """标签列表页面"""
+    return render_template('index.html')
 
 @app.route('/memo/<int:memo_id>')
 def memo_detail(memo_id):
@@ -233,7 +243,7 @@ def memo_detail(memo_id):
         content = memo['content']
         
         # 修复相对路径的图片引用，将 ../../assets/ 替换为 /assets/
-        content = re.sub(r'\.\./\.\./assets/', '/assets/', content)
+        content = re.sub(r'\.\./.\./assets/', '/assets/', content)
         
         memo['content'] = md.convert(content)
         
@@ -299,6 +309,56 @@ def search_memos():
             'query': query,
             'results': search_results,
             'total': len(search_results)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tags')
+def get_all_tags():
+    """获取所有标签及其文章数量"""
+    try:
+        all_memos = memo_parser.get_all_memos()
+        tag_counts = {}
+        
+        for memo in all_memos:
+            tags = memo.get('tags', [])
+            for tag in tags:
+                if tag:  # 确保标签不为空
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        
+        # 按文章数量排序
+        sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        return jsonify({
+            'tags': [{'name': tag, 'count': count} for tag, count in sorted_tags],
+            'total': len(sorted_tags)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memos/by-tag/<tag>')
+def get_memos_by_tag(tag):
+    """根据标签获取文章"""
+    try:
+        all_memos = memo_parser.get_all_memos()
+        
+        # 筛选包含指定标签的文章
+        filtered_memos = []
+        for memo in all_memos:
+            tags = memo.get('tags', [])
+            if any(t.lower() == tag.lower() for t in tags):
+                # 转换时间戳格式
+                memo_copy = memo.copy()
+                memo_copy['timestamp'] = memo['timestamp'].isoformat()
+                filtered_memos.append(memo_copy)
+        
+        # 按时间排序（最新的在前）
+        filtered_memos.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return jsonify({
+            'tag': tag,
+            'memos': filtered_memos,
+            'total': len(filtered_memos)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

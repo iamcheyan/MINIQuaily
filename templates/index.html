@@ -36,6 +36,9 @@
                         ></textarea>
                         <div class="compose-actions">
                             <div class="compose-tools">
+                                <button class="btn-tool" title="Add hashtag">
+                                    <i class="fas fa-hashtag"></i>
+                                </button>
                                 <button class="btn-tool" title="Add image">
                                     <i class="fas fa-image"></i>
                                 </button>
@@ -90,6 +93,18 @@
                                     <option>生活</option>
                                 </datalist>
                             </form>
+                        </div>
+                    </div>
+
+                    <!-- Tags Section -->
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">标签</h3>
+                        <div class="tags-container" id="tagsContainer">
+                            <div class="tag-filter active" data-tag="all" onclick="filterByTag('all')">全部</div>
+                            <!-- Tags will be loaded here -->
+                        </div>
+                        <div class="view-all-tags">
+                            <a href="/tags" onclick="navigateToTags(event)">查看所有标签 →</a>
                         </div>
                     </div>
 
