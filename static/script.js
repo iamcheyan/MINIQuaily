@@ -254,25 +254,65 @@ function handleKeyDown(e) {
     }
 }
 
-function handlePost() {
+async function handlePost() {
     const content = memoInput.value.trim();
     if (!content) return;
 
-    const tags = extractTags(content);
-    const newMemo = {
-        id: nextId++,
-        content: content,
-        tags: tags,
-        timestamp: new Date(),
-        likes: 0,
-        hasCheckbox: content.includes('[ ]') || content.includes('[x]'),
-        author: "yourselfhosted"
-    };
-
-    memos.unshift(newMemo);
-    memoInput.value = '';
+    // Disable the post button to prevent multiple submissions
     postBtn.disabled = true;
-    renderMemos();
+    postBtn.textContent = '保存中...';
+
+    try {
+        // Extract tags from content
+        const tags = extractTags(content);
+        
+        // Save to markdown file using the existing API
+        const response = await fetch('/api/save-log', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                content: content,
+                tags: tags.join(', ')
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('保存失败');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            // Create memo for display
+            const newMemo = {
+                id: nextId++,
+                content: content,
+                tags: tags,
+                timestamp: new Date(),
+                likes: 0,
+                hasCheckbox: content.includes('[ ]') || content.includes('[x]'),
+                author: "yourselfhosted"
+            };
+
+            memos.unshift(newMemo);
+            memoInput.value = '';
+            renderMemos();
+            
+            // Show success message
+            console.log('内容已保存为:', result.filename);
+        } else {
+            throw new Error(result.message || '保存失败');
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败: ' + error.message);
+    } finally {
+        // Re-enable the post button
+        postBtn.disabled = false;
+        postBtn.textContent = 'POST';
+    }
 }
 
 function extractTags(content) {

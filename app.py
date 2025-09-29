@@ -441,10 +441,11 @@ def save_log():
         cover_image_url = data.get('cover_image_url', '')
         content = data.get('content', '')
         
-        # 生成文件名
+        # 生成文件名 - 使用毫秒时间戳
         current_date = datetime.now()
         year = current_date.strftime('%Y')
-        filename = f"{date_str}-{slug}.md" if slug else f"{date_str}-log.md"
+        timestamp_ms = int(current_date.timestamp() * 1000)
+        filename = f"{timestamp_ms}.md"
         
         # 确保年份目录存在
         year_dir = os.path.join('content', year)
